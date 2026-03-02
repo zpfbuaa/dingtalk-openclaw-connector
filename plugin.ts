@@ -78,18 +78,21 @@ function isNewSessionCommand(text: string): boolean {
 /** 获取或创建用户 session key */
 function getSessionKey(
   senderId: string,
+  accountId: string,  // 添加 accountId 参数，支持多 agent 路由
   forceNew: boolean,
   sessionTimeout: number,
   log?: any,
 ): { sessionKey: string; isNew: boolean } {
   const now = Date.now();
-  const existing = userSessions.get(senderId);
+  const sessionKeyPrefix = `dingtalk-connector:${accountId}`;  // 使用 accountId 作为前缀
+  const cacheKey = `${accountId}:${senderId}`;  // 使用 accountId:senderId 作为缓存键
+  const existing = userSessions.get(cacheKey);
 
   // 强制新会话
   if (forceNew) {
-    const sessionId = `dingtalk-connector:${senderId}:${now}`;
-    userSessions.set(senderId, { lastActivity: now, sessionId });
-    log?.info?.(`[DingTalk][Session] 用户主动开启新会话: ${senderId}`);
+    const sessionId = `${sessionKeyPrefix}:${senderId}:${now}`;
+    userSessions.set(cacheKey, { lastActivity: now, sessionId });
+    log?.info?.(`[DingTalk][Session] 账号[${accountId}] 用户主动开启新会话: ${senderId}`);
     return { sessionKey: sessionId, isNew: true };
   }
 
@@ -97,9 +100,9 @@ function getSessionKey(
   if (existing) {
     const elapsed = now - existing.lastActivity;
     if (elapsed > sessionTimeout) {
-      const sessionId = `dingtalk-connector:${senderId}:${now}`;
-      userSessions.set(senderId, { lastActivity: now, sessionId });
-      log?.info?.(`[DingTalk][Session] 会话超时(${Math.round(elapsed / 60000)}分钟)，自动开启新会话: ${senderId}`);
+      const sessionId = `${sessionKeyPrefix}:${senderId}:${now}`;
+      userSessions.set(cacheKey, { lastActivity: now, sessionId });
+      log?.info?.(`[DingTalk][Session] 账号[${accountId}] 会话超时(${Math.round(elapsed / 60000)}分钟)，自动开启新会话: ${senderId}`);
       return { sessionKey: sessionId, isNew: true };
     }
     // 更新活跃时间
@@ -108,9 +111,9 @@ function getSessionKey(
   }
 
   // 首次会话
-  const sessionId = `dingtalk-connector:${senderId}`;
-  userSessions.set(senderId, { lastActivity: now, sessionId });
-  log?.info?.(`[DingTalk][Session] 新用户首次会话: ${senderId}`);
+  const sessionId = `${sessionKeyPrefix}:${senderId}`;
+  userSessions.set(cacheKey, { lastActivity: now, sessionId });
+  log?.info?.(`[DingTalk][Session] 账号[${accountId}] 新用户首次会话: ${senderId}`);
   return { sessionKey: sessionId, isNew: false };
 }
 
@@ -1124,7 +1127,7 @@ interface GatewayOptions {
   log?: any;
 }
 
-async function* streamFromGateway(options: GatewayOptions): AsyncGenerator<string, void, unknown> {
+async function* streamFromGateway(options: GatewayOptions, accountId: string): AsyncGenerator<string, void, unknown> {
   const { userContent, systemPrompts, sessionKey, gatewayAuth, imageLocalPaths, log } = options;
   const rt = getRuntime();
   const gatewayUrl = `http://127.0.0.1:${rt.gateway?.port || 18789}/v1/chat/completions`;
@@ -1147,8 +1150,10 @@ async function* streamFromGateway(options: GatewayOptions): AsyncGenerator<strin
   if (gatewayAuth) {
     headers['Authorization'] = `Bearer ${gatewayAuth}`;
   }
+  // 使用 HTTP Header 传递 accountId 用于 agent 路由
+  headers['X-OpenClaw-Agent-Id'] = accountId;
 
-  log?.info?.(`[DingTalk][Gateway] POST ${gatewayUrl}, session=${sessionKey}, messages=${messages.length}`);
+  log?.info?.(`[DingTalk][Gateway] POST ${gatewayUrl}, session=${sessionKey}, accountId=${accountId}, messages=${messages.length}`);
 
   const response = await fetch(gatewayUrl, {
     method: 'POST',
@@ -2229,7 +2234,7 @@ async function handleDingTalkMessage(params: {
 
   // 如果是新会话命令，直接回复确认消息
   if (forceNewSession) {
-    const { sessionKey } = getSessionKey(senderId, true, sessionTimeout, log);
+    const { sessionKey } = getSessionKey(senderId, accountId, true, sessionTimeout, log);
     await sendMessage(dingtalkConfig, sessionWebhook, '✨ 已开启新会话，之前的对话已清空。', {
       atUserId: !isDirect ? senderId : null,
     });
@@ -2238,7 +2243,7 @@ async function handleDingTalkMessage(params: {
   }
 
   // 获取或创建 session
-  const { sessionKey, isNew } = getSessionKey(senderId, false, sessionTimeout, log);
+  const { sessionKey, isNew } = getSessionKey(senderId, accountId, false, sessionTimeout, log);
   log?.info?.(`[DingTalk][Session] key=${sessionKey}, isNew=${isNew}`);
 
   // Gateway 认证：优先使用 token，其次 password
@@ -2387,7 +2392,7 @@ async function handleDingTalkMessage(params: {
         gatewayAuth,
         imageLocalPaths: imageLocalPaths.length > 0 ? imageLocalPaths : undefined,
         log,
-      })) {
+      }, accountId)) {
         accumulated += chunk;
         chunkCount++;
 
@@ -2467,7 +2472,7 @@ async function handleDingTalkMessage(params: {
         gatewayAuth,
         imageLocalPaths: imageLocalPaths.length > 0 ? imageLocalPaths : undefined,
         log,
-      })) {
+      }, accountId)) {
         fullResponse += chunk;
       }
 
