@@ -1,0 +1,60 @@
+# Issue 自动同步到钉钉群
+# 当有新 Issue 或 Issue 评论时，自动发送到钉钉群
+name: 🔔 Issue Notification to DingTalk
+
+on:
+  issues:
+    types: [opened, reopened, closed, labeled]
+  issue_comment:
+    types: [created]
+
+jobs:
+  notify:
+    runs-on: ubuntu-latest
+    steps:
+      - name: 📬 Send Issue to DingTalk
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const webhook = process.env.DINGTALK_WEBHOOK;
+            if (!webhook) {
+              console.log('⚠️ DINGTALK_WEBHOOK not set, skipping notification');
+              return;
+            }
+            
+            const event = context.eventName;
+            const payload = context.payload;
+            let title, content, url, action;
+            
+            if (event === 'issues') {
+              const issue = payload.issue;
+              action = payload.action;
+              title = `[${action.toUpperCase()}] Issue #${issue.number}: ${issue.title}`;
+              content = issue.body?.substring(0, 500) || 'No description';
+              url = issue.html_url;
+            } else if (event === 'issue_comment') {
+              const comment = payload.comment;
+              const issue = payload.issue;
+              action = 'commented';
+              title = `[COMMENT] Issue #${issue.number}: ${issue.title}`;
+              content = comment.body?.substring(0, 500) || 'No content';
+              url = comment.html_url;
+            }
+            
+            const message = {
+              msgtype: 'markdown',
+              markdown: {
+                title: 'GitHub Issue 通知',
+                text: `## 🔔 GitHub Issue 通知\n\n**${title}**\n\n${content}${content.length >= 500 ? '...' : ''}\n\n[点击查看详情](${url})\n\n---\n📦 ${context.repo.owner}/${context.repo.repo}`
+              }
+            };
+            
+            await fetch(webhook, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify(message)
+            });
+            
+            console.log('✅ DingTalk notification sent');
+        env:
+          DINGTALK_WEBHOOK: ${{ secrets.DINGTALK_WEBHOOK }}
