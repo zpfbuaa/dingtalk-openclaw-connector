@@ -90,6 +90,8 @@ openclaw plugins install -l .
       "clientSecret": "your_secret_here", // 钉钉 AppSecret
       "gatewayToken": "",                 // 可选：Gateway 认证 token, openclaw.json配置中 gateway.auth.token 的值 
       "gatewayPassword": "",              // 可选：Gateway 认证 password（与 token 二选一）
+      "sessionTimeout": 1800000,          // ⚠️ 已废弃，请使用 Gateway 的 session.reset.idleMinutes 配置
+      "separateSessionByConversation": true,  // 可选：是否按单聊/群聊/群区分 session（默认：true）
       "groupSessionScope": "group",       // 可选：群聊会话隔离策略，group=群共享，group_sender=群内用户独立（默认：group）
       "sharedMemoryAcrossConversations": false, // 可选：是否在不同会话间共享记忆；false 时群聊与私聊、不同群记忆隔离（默认：false）
       "asyncMode": false,                 // 可选：异步模式，立即回执用户消息，后台处理并推送结果（默认：false）
@@ -144,7 +146,9 @@ openclaw plugins list  # 确认 dingtalk-connector 已加载
 | `clientSecret` | `DINGTALK_CLIENT_SECRET` | 钉钉 AppSecret |
 | `gatewayToken` | `OPENCLAW_GATEWAY_TOKEN` | Gateway 认证 token（可选） |
 | `gatewayPassword` | — | Gateway 认证 password（可选，与 token 二选一） |
-| `groupSessionScope` | — | 群聊会话隔离策略：`group`=群共享，`group_sender`=群内用户独立（默认：group） |
+| `sessionTimeout` | — | ⚠️ 已废弃，请使用 Gateway 的 [`session.reset.idleMinutes`](https://docs.openclaw.ai/gateway/configuration) 配置 |
+| `separateSessionByConversation` | — | 是否按单聊/群聊/群区分 session（默认：true） |
+| `groupSessionScope` | — | 群聊会话隔离策略（仅当 separateSessionByConversation=true 时生效）：`group`=群共享，`group_sender`=群内用户独立（默认：group） |
 | `sharedMemoryAcrossConversations` | — | 是否在不同会话间共享记忆；false 时群聊与私聊、不同群记忆隔离（默认：false） |
 | `asyncMode` | — | 异步模式，立即回执用户消息，后台处理并推送结果（默认：false） |
 | `ackText` | — | 异步模式下的回执消息文本（默认：'🫡 任务已接收，处理中...'） |
@@ -153,7 +157,14 @@ openclaw plugins list  # 确认 dingtalk-connector 已加载
 
 连接器支持按单聊、群聊、不同群分别维护独立会话和记忆，确保同一用户在不同场景下的对话上下文互不干扰。
 
+### 会话隔离（separateSessionByConversation）
+
+- **默认开启**（`true`）：单聊、群聊、不同群各自拥有独立的 session
+- **关闭**（`false`）：按用户维度维护 session，不区分单聊/群聊（兼容旧行为）
+
 ### 群聊会话隔离（groupSessionScope）
+
+仅当 `separateSessionByConversation=true` 时生效：
 
 - **`group`**（默认）：整个群共享一个会话，群内所有用户共用同一个对话上下文
 - **`group_sender`**：群内每个用户独立会话，不同用户的对话上下文互不干扰
@@ -163,18 +174,10 @@ openclaw plugins list  # 确认 dingtalk-connector 已加载
 - **默认关闭**（`false`）：不同群聊、群聊与私聊之间的记忆隔离，AI 不会混淆不同场景下的对话历史
 - **开启**（`true`）：单 Agent 场景下，同一用户在不同会话间共享记忆
 
-### 废弃配置
-
-以下配置项已废弃，如果仍在使用会打印警告日志：
-
-| 配置项 | 说明 |
-|--------|------|
-| `sessionTimeout` | 已废弃，会话超时由 OpenClaw Gateway 的 `session.reset` 配置控制 |
-| `separateSessionByConversation` | 已废弃，请使用 `groupSessionScope` 配置群聊会话隔离策略 |
-
 ### 适用场景
 
 - ✅ 同一机器人在多个群中服务，希望每个群的对话互不干扰
+- ✅ 用户既在私聊也在群聊中使用机器人，希望私聊与群聊上下文分离
 - ✅ 群内所有成员共享对话上下文（默认 `groupSessionScope: "group"`）
 - ✅ 群内每个用户独立对话（设置 `groupSessionScope: "group_sender"`）
 - ✅ 需要跨会话共享记忆时，可设置 `sharedMemoryAcrossConversations: true`

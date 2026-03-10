@@ -8,6 +8,12 @@ and version numbers follow [Semantic Versioning](https://semver.org/).
 
 ## [0.7.5] - 2026-03-10
 
+### 修复 / Fixes
+- 🐛 **修复 Stream 客户端频繁重连问题** - 禁用 `DWClient` 内置的 `autoReconnect`，由框架的 health-monitor 统一管理重连逻辑，避免双重重连机制冲突  
+  **Fixed Stream client frequent reconnection issue** - Disabled `DWClient` built-in `autoReconnect`, reconnection is now managed by framework's health-monitor to avoid dual reconnection mechanism conflict
+- 🐛 **修复连接关闭不完整问题** - `stop()` 方法现在正确调用 `client.disconnect()` 关闭 WebSocket 连接  
+  **Fixed incomplete connection closure** - `stop()` method now correctly calls `client.disconnect()` to close WebSocket connection
+
 ### 重构 / Refactoring
 - ✅ **OpenClaw session.dmScope 机制** - 会话管理由 OpenClaw Gateway 统一处理，插件不再内部管理会话超时  
   **OpenClaw session.dmScope mechanism** - Session management is now handled by OpenClaw Gateway, plugin no longer manages session timeout internally
@@ -15,16 +21,14 @@ and version numbers follow [Semantic Versioning](https://semver.org/).
   **SessionContext standardization** - Use OpenClaw standard SessionContext JSON format for session context
 
 ### 配置变更 / Configuration Changes
-- 新增 `groupSessionScope`（默认：`group`）- 群聊会话隔离策略：`group`=群共享，`group_sender`=群内用户独立  
-  Added `groupSessionScope` (default: `group`) - Group chat session isolation: `group`=shared, `group_sender`=per-user
-- ⚠️ **废弃** `sessionTimeout` - 会话超时由 OpenClaw Gateway 的 `session.reset` 配置控制  
-  **Deprecated** `sessionTimeout` - Session timeout is now controlled by OpenClaw Gateway's `session.reset` config
-- ⚠️ **废弃** `separateSessionByConversation` - 请使用 `groupSessionScope` 配置群聊会话隔离策略  
-  **Deprecated** `separateSessionByConversation` - Use `groupSessionScope` for group chat session isolation
+- 新增 `groupSessionScope`（默认：`group`）- 群聊会话隔离策略（仅当 separateSessionByConversation=true 时生效）：`group`=群共享，`group_sender`=群内用户独立  
+  Added `groupSessionScope` (default: `group`) - Group chat session isolation (only when separateSessionByConversation=true): `group`=shared, `group_sender`=per-user
+- ⚠️ **废弃** `sessionTimeout` - 会话超时由 OpenClaw Gateway 的 `session.reset.idleMinutes` 配置控制，详见 [Gateway 配置文档](https://docs.openclaw.ai/gateway/configuration)  
+  **Deprecated** `sessionTimeout` - Session timeout is now controlled by OpenClaw Gateway's `session.reset.idleMinutes`, see [Gateway Configuration](https://docs.openclaw.ai/gateway/configuration)
 
 ### 向后兼容 / Backward Compatibility
-- 旧配置 `sessionTimeout` 和 `separateSessionByConversation` 仍可使用，但会打印废弃警告日志  
-  Old configs `sessionTimeout` and `separateSessionByConversation` still work but will print deprecation warnings
+- 旧配置 `sessionTimeout` 仍可使用，但会打印废弃警告日志  
+  Old config `sessionTimeout` still works but will print deprecation warning
 
 ## [0.7.4] - 2026-03-09
 
@@ -39,7 +43,8 @@ and version numbers follow [Semantic Versioning](https://semver.org/).
   **X-OpenClaw-Memory-User support** - Pass memory user identifier to Gateway for memory management
 
 ### 配置 / Configuration
-- 新增 `separateSessionByConversation`（默认：`true`）- 是否按单聊/群聊/群区分 session（0.7.5 已废弃）  
+- 新增 `separateSessionByConversation`（默认：`true`）- 是否按单聊/群聊/群区分 session  
+  Added `separateSessionByConversation` (default: `true`) - Whether to separate sessions by direct/group/different groups  
   Added `separateSessionByConversation` (default: `true`) - Whether to separate sessions by direct/group/different groups (deprecated in 0.7.5)
 - 新增 `sharedMemoryAcrossConversations`（默认：`false`）- 单 Agent 场景下是否在不同会话间共享记忆；`false` 时不同群聊、群聊与私聊记忆隔离  
   Added `sharedMemoryAcrossConversations` (default: `false`) - Whether to share memory across conversations in single-Agent mode; when `false`, memory is isolated between different groups and between DMs and groups

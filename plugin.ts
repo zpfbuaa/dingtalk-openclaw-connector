@@ -86,6 +86,13 @@ interface SessionContext {
 /**
  * 构建 OpenClaw 标准会话上下文
  * 遵循 OpenClaw session.dmScope 机制，让 Gateway 根据配置自动处理会话隔离
+ *
+ * @param separateSessionByConversation - 是否按单聊/群聊/群区分 session（默认 true）
+ *   - true: 单聊、群聊、不同群各自拥有独立的 session
+ *   - false: 按用户维度维护 session，不区分单聊/群聊（兼容旧行为）
+ * @param groupSessionScope - 群聊会话隔离策略（仅当 separateSessionByConversation=true 时生效）
+ *   - 'group': 整个群共享一个会话（默认）
+ *   - 'group_sender': 群内每个用户独立会话
  */
 function buildSessionContext(params: {
   accountId: string;
@@ -94,11 +101,24 @@ function buildSessionContext(params: {
   conversationType: string;
   conversationId?: string;
   groupSubject?: string;
+  separateSessionByConversation?: boolean;
   groupSessionScope?: 'group' | 'group_sender';
 }): SessionContext {
-  const { accountId, senderId, senderName, conversationType, conversationId, groupSubject, groupSessionScope } = params;
+  const { accountId, senderId, senderName, conversationType, conversationId, groupSubject, separateSessionByConversation, groupSessionScope } = params;
   const isDirect = conversationType === '1';
 
+  // separateSessionByConversation=false 时，不区分单聊/群聊，按用户维度维护 session
+  if (separateSessionByConversation === false) {
+    return {
+      channel: 'dingtalk-connector',
+      accountId,
+      chatType: isDirect ? 'direct' : 'group',
+      peerId: senderId, // 只用 senderId，不区分会话
+      senderName,
+    };
+  }
+
+  // 以下是 separateSessionByConversation=true（默认）的逻辑
   if (isDirect) {
     // 单聊：peerId 为发送者 ID，由 OpenClaw Gateway 根据 dmScope 配置处理
     return {
@@ -1245,7 +1265,9 @@ async function* streamFromGateway(options: GatewayOptions, accountId: string): A
   const agentId = accountId === DEFAULT_ACCOUNT_ID ? 'main' : accountId;
   headers['X-OpenClaw-Agent-Id'] = agentId;
   if (memoryUser) {
-    headers['X-OpenClaw-Memory-User'] = memoryUser;
+    // 使用 Base64 编码处理可能包含中文字符的 memoryUser
+    // HTTP Header 只能包含 ASCII 字符，中文字符会导致 ByteString 编码错误
+    headers['X-OpenClaw-Memory-User'] = Buffer.from(memoryUser, 'utf-8').toString('base64');
   }
 
   const sessionContextJson = JSON.stringify(sessionContext);
@@ -2367,13 +2389,11 @@ async function handleDingTalkMessage(params: {
   }
 
   // 构建 OpenClaw 标准会话上下文
-  // 兼容旧配置：sessionTimeout 和 separateSessionByConversation 已废弃，打印警告
+  // 兼容旧配置：sessionTimeout 已废弃，打印警告
   if (dingtalkConfig.sessionTimeout !== undefined) {
     log?.warn?.(`[DingTalk][Deprecation] 'sessionTimeout' 配置已废弃，会话超时由 OpenClaw Gateway 的 session.reset 配置控制`);
   }
-  if (dingtalkConfig.separateSessionByConversation !== undefined) {
-    log?.warn?.(`[DingTalk][Deprecation] 'separateSessionByConversation' 配置已废弃，请使用 'groupSessionScope' 配置群聊会话隔离策略`);
-  }
+  const separateSessionByConversation = dingtalkConfig.separateSessionByConversation as boolean | undefined;
   const groupSessionScope = dingtalkConfig.groupSessionScope as 'group' | 'group_sender' | undefined;
   const sessionContext = buildSessionContext({
     accountId,
@@ -2382,12 +2402,17 @@ async function handleDingTalkMessage(params: {
     conversationType: data.conversationType,
     conversationId: data.conversationId,
     groupSubject: data.conversationTitle,
+    separateSessionByConversation,
     groupSessionScope,
   });
   const sessionContextJson = JSON.stringify(sessionContext);
   log?.info?.(`[DingTalk][Session] context=${sessionContextJson}`);
 
-  const memoryUser = dingtalkConfig.sharedMemoryAcrossConversations === true ? accountId : sessionContextJson;
+  // memoryUser 用于 Gateway 区分记忆归属
+  // 使用 peerId（不包含中文）作为标识符，避免 HTTP Header 编码问题
+  const memoryUser = dingtalkConfig.sharedMemoryAcrossConversations === true
+    ? accountId
+    : `${sessionContext.channel}:${sessionContext.accountId}:${sessionContext.peerId}`;
 
   // Gateway 认证：优先使用 token，其次 password
   const gatewayAuth = dingtalkConfig.gatewayToken || dingtalkConfig.gatewayPassword || '';
@@ -3071,7 +3096,8 @@ const dingtalkPlugin = {
         groupPolicy: { type: 'string', enum: ['open', 'allowlist'], default: 'open' },
         gatewayToken: { type: 'string', default: '', description: 'Gateway auth token (Bearer)' },
         gatewayPassword: { type: 'string', default: '', description: 'Gateway auth password (alternative to token)' },
-        groupSessionScope: { type: 'string', enum: ['group', 'group_sender'], default: 'group', description: '群聊会话隔离策略：group=群共享，group_sender=群内用户独立' },
+        separateSessionByConversation: { type: 'boolean', default: true, description: '是否按单聊/群聊/群区分 session；false 时按用户维度维护 session' },
+        groupSessionScope: { type: 'string', enum: ['group', 'group_sender'], default: 'group', description: '群聊会话隔离策略（仅当 separateSessionByConversation=true 时生效）：group=群共享，group_sender=群内用户独立' },
         sharedMemoryAcrossConversations: { type: 'boolean', default: false, description: '单 agent 场景下是否共享记忆；false 时不同群聊、群聊与私聊记忆隔离' },
         asyncMode: { type: 'boolean', default: false, description: 'Send immediate ack and push final result as a second message' },
         ackText: { type: 'string', default: '🫡 任务已接收，处理中...', description: 'Ack text when asyncMode is enabled' },
@@ -3251,11 +3277,14 @@ const dingtalkPlugin = {
 
       ctx.log?.info(`[${account.accountId}] 启动钉钉 Stream 客户端...`);
 
+      // 【关键】禁用 DWClient 内置的 autoReconnect，由框架的 health-monitor 统一管理重连
+      // 否则会导致双重重连机制冲突，出现频繁重连的问题
       const client = new DWClient({
         clientId: config.clientId,
         clientSecret: config.clientSecret,
         debug: config.debug || false,
-      });
+        autoReconnect: false,  // 禁用内置重连，由框架管理
+      } as any);
 
       client.registerCallbackListener(TOPIC_ROBOT, async (res: any) => {
         const messageId = res.headers?.messageId;
@@ -3305,22 +3334,27 @@ const dingtalkPlugin = {
       rt.channel.activity.record('dingtalk-connector', account.accountId, 'start');
 
       let stopped = false;
+      
+      // 统一的停止逻辑
+      const doStop = (reason: string) => {
+        if (stopped) return;
+        stopped = true;
+        ctx.log?.info(`[${account.accountId}] 停止钉钉 Stream 客户端 (${reason})...`);
+        try {
+          // 【关键】调用 disconnect() 正确关闭 WebSocket 连接
+          client.disconnect();
+        } catch (err: any) {
+          ctx.log?.warn?.(`[${account.accountId}] 断开连接时出错: ${err.message}`);
+        }
+        rt.channel.activity.record('dingtalk-connector', account.accountId, 'stop');
+      };
+
       if (abortSignal) {
-        abortSignal.addEventListener('abort', () => {
-          if (stopped) return;
-          stopped = true;
-          ctx.log?.info(`[${account.accountId}] 停止钉钉 Stream 客户端...`);
-          rt.channel.activity.record('dingtalk-connector', account.accountId, 'stop');
-        });
+        abortSignal.addEventListener('abort', () => doStop('abortSignal'));
       }
 
       return {
-        stop: () => {
-          if (stopped) return;
-          stopped = true;
-          ctx.log?.info(`[${account.accountId}] 钉钉 Channel 已停止`);
-          rt.channel.activity.record('dingtalk-connector', account.accountId, 'stop');
-        },
+        stop: () => doStop('manual'),
       };
     },
   },
