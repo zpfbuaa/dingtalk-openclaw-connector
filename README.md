@@ -87,6 +87,7 @@ openclaw plugins install -l .
   "channels": {
     "dingtalk-connector": {
       "enabled": true,
+      "gatewayBaseUrl": "http://localhost:18789", // 可选：如果Gateway地址是TLS/HTTPS，see PR #117
       "clientId": "dingxxxxxxxxx",       // 钉钉 AppKey
       "clientSecret": "your_secret_here", // 钉钉 AppSecret
       "gatewayToken": "",                 // 可选：Gateway 认证 token, openclaw.json配置中 gateway.auth.token 的值 
@@ -679,6 +680,9 @@ openclaw gateway start
    | gatewayToken | 第一步获取 | Gateway 配置的认证令牌 |
 
    <img width="3426" height="1752" alt="配置 OpenClaw 技能参数" src="https://github.com/user-attachments/assets/bc725789-382f-41b5-bbdb-ba8f29923d5c" />
+
+注意 OpenClaw 属于一个MCP，还需要配置他的触发规则，满足规则的情况下才会使用这个MCP:
+<img width="1088" height="526" alt="image" src="https://github.com/user-attachments/assets/8b0b6f6d-70ff-4edc-b674-7a24126aadfa" />
 
 4. 发布 Agent：
 
