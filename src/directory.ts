@@ -1,4 +1,4 @@
-import type { ClawdbotConfig } from "openclaw/plugin-sdk/feishu";
+import type { ClawdbotConfig } from "openclaw/plugin-sdk";
 import { resolveDingtalkAccount } from "./accounts.js";
 import { normalizeDingtalkTarget } from "./targets.js";
 

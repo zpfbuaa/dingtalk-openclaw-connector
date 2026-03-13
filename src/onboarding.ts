@@ -5,14 +5,14 @@ import type {
   DmPolicy,
   SecretInput,
   WizardPrompter,
-} from "openclaw/plugin-sdk/feishu";
+} from "openclaw/plugin-sdk";
 import {
   addWildcardAllowFrom,
   DEFAULT_ACCOUNT_ID,
   formatDocsLink,
   hasConfiguredSecretInput,
-  promptSingleChannelSecretInput,
-} from "openclaw/plugin-sdk/feishu";
+} from "./sdk-helpers.js";
+import { promptSingleChannelSecretInput } from "openclaw/plugin-sdk";
 import { resolveDingtalkCredentials } from "./accounts.js";
 import { probeDingtalk } from "./probe.js";
 import type { DingtalkConfig } from "./types.js";

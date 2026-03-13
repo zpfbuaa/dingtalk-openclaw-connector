@@ -1,4 +1,4 @@
-import type { ToolPolicy } from "openclaw/plugin-sdk/feishu";
+import type { ToolPolicy } from "openclaw/plugin-sdk";
 import type { ResolvedDingtalkAccount } from "./types.js";
 
 export function resolveDingtalkGroupToolPolicy(params: {

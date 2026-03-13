@@ -5,7 +5,7 @@
  * 已迁移到 OpenClaw SDK，支持多账号、安全策略等完整功能。
  */
 
-import type { PluginApi } from "openclaw/plugin-sdk/feishu";
+import type { PluginApi } from "openclaw/plugin-sdk";
 import { dingtalkPlugin } from "./src/channel.js";
 
 export default function register(api: PluginApi) {

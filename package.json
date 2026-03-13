@@ -46,7 +46,8 @@
     "mammoth": "^1.8.0",
     "pdf-parse": "^1.1.1",
     "zod": "^3.22.0",
-    "form-data": "^4.0.0"
+    "form-data": "^4.0.0",
+    "openclaw": "^2026.3.0"
   },
   "openclaw": {
     "extensions": [

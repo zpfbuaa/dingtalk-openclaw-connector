@@ -1,5 +1,5 @@
 import { DWClient, TOPIC_ROBOT } from 'dingtalk-stream';
-import type { ClawdbotConfig, RuntimeEnv, HistoryEntry } from "openclaw/plugin-sdk/feishu";
+import type { ClawdbotConfig, RuntimeEnv, HistoryEntry } from "openclaw/plugin-sdk";
 import type { ResolvedDingtalkAccount, DingtalkConfig } from "./types.js";
 import { 
   isMessageProcessed, 

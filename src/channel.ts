@@ -1,11 +1,15 @@
-import type { ChannelMeta, ChannelPlugin, ClawdbotConfig } from "openclaw/plugin-sdk/feishu";
+import type {
+  ChannelMeta,
+  ChannelPlugin,
+  ClawdbotConfig,
+} from "openclaw/plugin-sdk";
 import {
   buildBaseChannelStatusSummary,
   createDefaultChannelRuntimeState,
   DEFAULT_ACCOUNT_ID,
   resolveAllowlistProviderRuntimeGroupPolicy,
   resolveDefaultGroupPolicy,
-} from "openclaw/plugin-sdk/feishu";
+} from "./sdk-helpers.js";
 import {
   resolveDingtalkAccount,
   resolveDingtalkCredentials,

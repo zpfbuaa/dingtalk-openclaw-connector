@@ -1,4 +1,4 @@
-import type { ClawdbotConfig, RuntimeEnv } from "openclaw/plugin-sdk/feishu";
+import type { ClawdbotConfig, RuntimeEnv } from "openclaw/plugin-sdk";
 import { listEnabledDingtalkAccounts, resolveDingtalkAccount } from "./accounts.js";
 import {
   monitorSingleAccount,
