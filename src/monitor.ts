@@ -24,6 +24,7 @@ export {
   getDingtalkWebhookRateLimitStateSizeForTest,
   isWebhookRateLimitedForTest,
   resolveReactionSyntheticEvent,
+  monitorSingleAccount,
 };
 export type { DingtalkReactionCreatedEvent };
 
