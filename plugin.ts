@@ -3629,7 +3629,7 @@ const dingtalkPlugin = {
       };
       
       // 启动心跳检测定时器
-      const heartbeatTimer = setInterval(() => {
+      const heartbeatTimer = setInterval(async () => {
         if (stopped) {
           clearInterval(heartbeatTimer);
           return;
@@ -3641,12 +3641,33 @@ const dingtalkPlugin = {
         if (elapsed > HEARTBEAT_TIMEOUT) {
           ctx.log?.warn?.(`[${account.accountId}] ⚠️ 心跳超时：已 ${Math.round(elapsed / 1000)} 秒未收到消息，触发重连...`);
           
-          // 触发重连：先断开再重连
+          // 【关键修复】主动重连：先断开再重新建立连接
           try {
-            client.disconnect();
-            ctx.log?.info?.(`[${account.accountId}] 已断开连接，等待 autoReconnect 重连...`);
+            // 1. 先断开旧连接
+            await client.disconnect();
+            ctx.log?.info?.(`[${account.accountId}] 已断开旧连接`);
+            
+            // 2. 重新建立连接
+            ctx.log?.info?.(`[${account.accountId}] 正在重新建立连接...`);
+            await client.connect();
+            
+            // 3. 重置最后消息时间，避免立即再次触发重连
+            lastMessageTime = Date.now();
+            
+            ctx.log?.info?.(`[${account.accountId}] ✅ 重连成功`);
           } catch (err: any) {
-            ctx.log?.error?.(`[${account.accountId}] 断开连接时出错：${err.message}`);
+            ctx.log?.error?.(`[${account.accountId}] ❌ 重连失败：${err.message}`);
+            // 重连失败后，等待 5 秒后再次尝试
+            ctx.log?.info?.(`[${account.accountId}] 5 秒后再次尝试重连...`);
+            setTimeout(async () => {
+              try {
+                await client.connect();
+                lastMessageTime = Date.now();
+                ctx.log?.info?.(`[${account.accountId}] ✅ 重试重连成功`);
+              } catch (retryErr: any) {
+                ctx.log?.error?.(`[${account.accountId}] ❌ 重试重连失败：${retryErr.message}`);
+              }
+            }, 5000);
           }
         } else if (elapsed > HEARTBEAT_INTERVAL * 2) {
           // 超过 60 秒未收到消息，输出警告
