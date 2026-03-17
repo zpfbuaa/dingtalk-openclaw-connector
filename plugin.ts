@@ -1103,7 +1103,7 @@ async function processFileMarkers(
 
 const DINGTALK_API = 'https://api.dingtalk.com';
 const DINGTALK_OAPI = 'https://oapi.dingtalk.com';
-const AI_CARD_TEMPLATE_ID = '02fcf2f4-5e02-4a85-b672-46d1f715543e.schema';
+const AI_CARD_TEMPLATE_ID = '4aea9187-9bdb-44c6-afe7-61b9fca0bb61.schema';
 
 // flowStatus 值与 Python SDK AICardStatus 一致（cardParamMap 的值必须是字符串）
 const AICardStatus = {
@@ -2597,6 +2597,33 @@ async function recallEmotionReply(config: any, data: any, log?: any): Promise<vo
   }
 }
 
+/** 在用户消息上贴 ✅已完成 表情，表示处理完成 */
+async function addCompletedEmotion(config: any, data: any, log?: any): Promise<void> {
+  if (!data.msgId || !data.conversationId) return;
+  try {
+    const token = await getAccessToken(config);
+    await axios.post(`${DINGTALK_API}/v1.0/robot/emotion/reply`, {
+      robotCode: data.robotCode ?? config.clientId,
+      openMsgId: data.msgId,
+      openConversationId: data.conversationId,
+      emotionType: 2,
+      emotionName: '✅已完成',
+      textEmotion: {
+        emotionId: '2659901',
+        emotionName: '✅已完成',
+        text: '✅已完成',
+        backgroundId: 'im_bg_1',
+      },
+    }, {
+      headers: { 'x-acs-dingtalk-access-token': token, 'Content-Type': 'application/json' },
+      timeout: 5_000,
+    });
+    log?.info?.(`[DingTalk][Emotion] 贴完成表情成功: msgId=${data.msgId}`);
+  } catch (err: any) {
+    log?.warn?.(`[DingTalk][Emotion] 贴完成表情失败（不影响主流程）: ${err.message}`);
+  }
+}
+
 // ============ 核心消息处理 (AI Card Streaming) ============
 
 async function handleDingTalkMessage(params: {
@@ -2784,6 +2811,11 @@ async function handleDingTalkMessage(params: {
   // ===== 贴处理中表情 =====
   await addEmotionReply(dingtalkConfig, data, log);
 
+  // ===== 全局进度条（asyncMode 专用，5秒一次）=====
+  let progressInterval: NodeJS.Timeout | null = null;
+  let progressCount = 0;
+  let progressCard: AICardInstance | null = null;  // 在 try 外声明确保 finally 可访问
+
   try {
   // ===== 异步模式：立即回执 + 后台执行 + 主动推送结果 =====
   const asyncMode = dingtalkConfig.asyncMode === true;
@@ -2792,17 +2824,56 @@ async function handleDingTalkMessage(params: {
     : { openConversationId: data.conversationId };
 
   if (asyncMode) {
-    const ackText = dingtalkConfig.ackText || '🫡 任务已接收，处理中...';
+    // 记录任务开始时间
+    const taskStartTime = Date.now();
+
+    // ===== 创建进度 AI Card =====
+    const progressTarget: AICardTarget = isDirect
+      ? { type: 'user', userId: data.senderStaffId || data.senderId }
+      : { type: 'group', openConversationId: data.conversationId };
+    
     try {
-      await sendProactive(dingtalkConfig, proactiveTarget, ackText, {
-        msgType: 'text',
-        useAICard: false,
-        fallbackToNormal: true,
-        log,
-      });
-    } catch (ackErr: any) {
-      log?.warn?.(`[DingTalk][Async] 回执发送失败: ${ackErr?.message || ackErr}`);
+      progressCard = await createAICardForTarget(dingtalkConfig, progressTarget, log);
+      if (progressCard) {
+        log?.info?.(`[DingTalk][Progress] 进度卡片创建成功: ${progressCard.cardInstanceId}`);
+      }
+    } catch (cardErr: any) {
+      log?.warn?.(`[DingTalk][Progress] 进度卡片创建失败（将降级）: ${cardErr.message}`);
+      progressCard = null;
     }
+
+    // 如果卡片创建失败，发送普通回执消息
+    if (!progressCard) {
+      const ackText = dingtalkConfig.ackText || '🫡 任务已接收，处理中...';
+      try {
+        await sendProactive(dingtalkConfig, proactiveTarget, ackText, {
+          msgType: 'text',
+          useAICard: false,
+          fallbackToNormal: true,
+          log,
+        });
+      } catch (ackErr: any) {
+        log?.warn?.(`[DingTalk][Async] 回执发送失败: ${ackErr?.message || ackErr}`);
+      }
+    }
+
+    // ===== 启动进度定时器（5秒一次，原地更新卡片）=====
+    const progressEmojis = ['⏳', '⌛', '⏱️', '⏲️'];
+    progressInterval = setInterval(async () => {
+      progressCount++;
+      const emoji = progressEmojis[progressCount % progressEmojis.length];
+      const dots = '.'.repeat((progressCount % 3) + 1);
+      const progressText = `${emoji} 处理中${dots}\n\n已等待 ${progressCount * 5} 秒`;
+      
+      if (progressCard) {
+        try {
+          await streamAICard(progressCard, progressText, false, log);
+          log?.info?.(`[DingTalk][Progress] 进度更新: ${progressCount * 5}秒`);
+        } catch (err: any) {
+          log?.warn?.(`[DingTalk][Progress] 进度更新失败: ${err.message}`);
+        }
+      }
+    }, 5000);
 
     // 计算 peerKind 和 peerId 用于 bindings 匹配
     const peerKind: 'direct' | 'group' = isDirect ? 'direct' : 'group';
@@ -2826,6 +2897,9 @@ async function handleDingTalkMessage(params: {
         fullResponse += chunk;
       }
 
+      // 停止进度条
+      if (progressInterval) { clearInterval(progressInterval); progressInterval = null; }
+
       log?.info?.(`[DingTalk][Async] Gateway 完成，原始长度=${fullResponse.length}`);
 
       // 后处理01：上传本地图片到钉钉，替换 file:// 路径为 media_id
@@ -2843,27 +2917,66 @@ async function handleDingTalkMessage(params: {
       // 后处理04：提取文件标记并发送独立文件消息（主动 API）
       fullResponse = await processFileMarkers(fullResponse, '', dingtalkConfig, oapiToken, log, true, proactiveMediaTarget);
 
-      const finalText = fullResponse.trim() || '✅ 任务执行完成（无文本输出）';
-      await sendProactive(dingtalkConfig, proactiveTarget, finalText, {
-        msgType: 'markdown',
-        useAICard: false,
-        fallbackToNormal: true,
-        log,
-      });
-
-      log?.info?.(`[DingTalk][Async] 结果已主动推送，长度=${finalText.length}`);
-    } catch (err: any) {
-      const errMsg = `⚠️ 任务执行失败: ${err?.message || err}`;
-      log?.error?.(`[DingTalk][Async] ${errMsg}`);
-      try {
-        await sendProactive(dingtalkConfig, proactiveTarget, errMsg, {
-          msgType: 'text',
+      // 计算真实总耗时（从任务开始到完成）
+      const totalSeconds = Math.round((Date.now() - taskStartTime) / 1000);
+      const timeInfo = `\n\n---\n⏱️ 总耗时: ${totalSeconds} 秒`;
+      
+      const rawText = fullResponse.trim() || '✅ 任务执行完成（无文本输出）';
+      const finalText = rawText + timeInfo;
+      
+      // 用最终结果替换进度卡片（或降级发送新消息）
+      if (progressCard) {
+        try {
+          await finishAICard(progressCard, finalText, log);
+          log?.info?.(`[DingTalk][Async] 结果已更新到进度卡片，长度=${finalText.length}`);
+        } catch (finishErr: any) {
+          log?.warn?.(`[DingTalk][Async] 更新进度卡片失败，降级发送新消息: ${finishErr.message}`);
+          await sendProactive(dingtalkConfig, proactiveTarget, finalText, {
+            msgType: 'markdown',
+            useAICard: false,
+            fallbackToNormal: true,
+            log,
+          });
+        }
+      } else {
+        await sendProactive(dingtalkConfig, proactiveTarget, finalText, {
+          msgType: 'markdown',
           useAICard: false,
           fallbackToNormal: true,
           log,
         });
-      } catch (sendErr: any) {
-        log?.error?.(`[DingTalk][Async] 错误通知发送失败: ${sendErr?.message || sendErr}`);
+        log?.info?.(`[DingTalk][Async] 结果已主动推送（无进度卡片），长度=${finalText.length}`);
+      }
+
+      // ===== 添加完成表情 =====
+      await recallEmotionReply(dingtalkConfig, data, log);
+      await addCompletedEmotion(dingtalkConfig, data, log);
+      return;
+    } catch (err: any) {
+      // 停止进度条
+      if (progressInterval) { clearInterval(progressInterval); progressInterval = null; }
+
+      const errMsg = `⚠️ 任务执行失败: ${err?.message || err}`;
+      log?.error?.(`[DingTalk][Async] ${errMsg}`);
+      
+      // 用错误信息替换进度卡片（或降级发送新消息）
+      if (progressCard) {
+        try {
+          await finishAICard(progressCard, errMsg, log);
+        } catch (finishErr: any) {
+          log?.warn?.(`[DingTalk][Async] 更新进度卡片失败: ${finishErr.message}`);
+        }
+      } else {
+        try {
+          await sendProactive(dingtalkConfig, proactiveTarget, errMsg, {
+            msgType: 'text',
+            useAICard: false,
+            fallbackToNormal: true,
+            log,
+          });
+        } catch (sendErr: any) {
+          log?.error?.(`[DingTalk][Async] 错误通知发送失败: ${sendErr?.message || sendErr}`);
+        }
       }
     }
 
@@ -2956,7 +3069,17 @@ async function handleDingTalkMessage(params: {
       }
       log?.info?.(`[DingTalk] 流式响应完成，共 ${finalContent.length} 字符`);
 
+      // 停止进度条
+      if (progressInterval) { clearInterval(progressInterval); progressInterval = null; }
+
+      // ===== 添加完成表情 =====
+      await recallEmotionReply(dingtalkConfig, data, log);
+      await addCompletedEmotion(dingtalkConfig, data, log);
+
     } catch (err: any) {
+      // 停止进度条
+      if (progressInterval) { clearInterval(progressInterval); progressInterval = null; }
+
       log?.error?.(`[DingTalk] Gateway 调用失败: ${err.message}`);
       log?.error?.(`[DingTalk] 错误详情: ${err.stack}`);
       accumulated += `\n\n⚠️ 响应中断: ${err.message}`;
@@ -3005,13 +3128,23 @@ async function handleDingTalkMessage(params: {
       log?.info?.(`[DingTalk][File] (降级模式) 开始文件后处理`);
       fullResponse = await processFileMarkers(fullResponse, sessionWebhook, dingtalkConfig, oapiToken, log);
 
+      // 停止进度条
+      if (progressInterval) { clearInterval(progressInterval); progressInterval = null; }
+
       await sendMessage(dingtalkConfig, sessionWebhook, fullResponse || '（无响应）', {
         atUserId: !isDirect ? senderId : null,
         useMarkdown: true,
       });
       log?.info?.(`[DingTalk] 普通消息回复完成，共 ${fullResponse.length} 字符`);
 
+      // ===== 添加完成表情 =====
+      await recallEmotionReply(dingtalkConfig, data, log);
+      await addCompletedEmotion(dingtalkConfig, data, log);
+
     } catch (err: any) {
+      // 停止进度条
+      if (progressInterval) { clearInterval(progressInterval); progressInterval = null; }
+
       log?.error?.(`[DingTalk] Gateway 调用失败: ${err.message}`);
       await sendMessage(dingtalkConfig, sessionWebhook, `抱歉，处理请求时出错: ${err.message}`, {
         atUserId: !isDirect ? senderId : null,
@@ -3019,7 +3152,9 @@ async function handleDingTalkMessage(params: {
     }
   }
   } finally {
-    // ===== 撤回处理中表情 =====
+    // ===== 确保进度条定时器被清除（兜底）=====
+    if (progressInterval) { clearInterval(progressInterval); progressInterval = null; }
+    // ===== 失败时仅撤回处理中表情（成功时已在各分支处理） =====
     await recallEmotionReply(dingtalkConfig, data, log);
   }
 }
