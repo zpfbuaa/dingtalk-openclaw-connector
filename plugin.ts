@@ -1195,7 +1195,7 @@ async function streamAICard(
       cardData: {
         cardParamMap: {
           flowStatus: AICardStatus.INPUTING,
-          msgContent: '',
+          msgContent: content,
           staticMsgContent: '',
           sys_full_json_obj: JSON.stringify({
             order: ['msgContent'],  // 只声明实际使用的字段，避免部分客户端显示空占位
@@ -1264,8 +1264,8 @@ async function finishAICard(
           order: ['msgContent'],  // 只声明实际使用的字段，避免部分客户端显示空占位
         }),
       },
-      cardUpdateOptions:{updateCardDataByKey:true}
     },
+    cardUpdateOptions: { updateCardDataByKey: true },
   };
 
   log?.info?.(`[DingTalk][AICard] PUT /v1.0/card/instances (FINISHED) outTrackId=${card.cardInstanceId}`);
@@ -1849,14 +1849,25 @@ function buildDeliverBody(
     return {
       ...base,
       openSpaceId: `dtv1.card//IM_GROUP.${target.openConversationId}`,
-      imGroupOpenDeliverModel: { robotCode },
+      imGroupOpenDeliverModel: {
+        robotCode,
+        extension: {
+          dynamicSummary: 'true',
+        },
+      },
     };
   }
 
   return {
     ...base,
     openSpaceId: `dtv1.card//IM_ROBOT.${target.userId}`,
-    imRobotOpenDeliverModel: { spaceType: 'IM_ROBOT', robotCode },
+    imRobotOpenDeliverModel: {
+      spaceType: 'IM_ROBOT',
+      robotCode,
+      extension: {
+        dynamicSummary: 'true',
+      },
+    },
   };
 }
 
