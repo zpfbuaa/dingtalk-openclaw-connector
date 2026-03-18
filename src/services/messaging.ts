@@ -4,7 +4,7 @@
  */
 
 import axios from "axios";
-import type { DingtalkConfig } from "./types.ts";
+import type { DingtalkConfig } from "../types/index.ts";
 import { DINGTALK_API, getAccessToken, getOapiAccessToken } from "../utils/index.ts";
 import { createLoggerFromConfig } from "../utils/logger.ts";
 import {

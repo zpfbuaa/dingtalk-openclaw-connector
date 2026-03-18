@@ -4,8 +4,8 @@
  */
 
 import axios from 'axios';
-import type { DingtalkConfig } from './types.js';
-import { getAccessToken, DINGTALK_API } from './utils.js';
+import type { DingtalkConfig } from './types/index.ts';
+import { getAccessToken, DINGTALK_API } from './utils/index.ts';
 
 // ============ 类型定义 ============
 

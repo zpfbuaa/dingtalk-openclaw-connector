@@ -316,7 +316,7 @@ export async function handleDingTalkMessage(params: HandleMessageParams): Promis
   // ===== DM Policy 检查 =====
   if (isDirect) {
     const dmPolicy = config.dmPolicy || 'open';
-    const allowFrom: string[] = config.allowFrom || [];
+    const allowFrom: (string | number)[] = config.allowFrom || [];
     // 安全检查：确保 senderId 存在且为字符串
     if (dmPolicy === 'allowlist' && allowFrom.length > 0 && senderId && typeof senderId === 'string' && !allowFrom.includes(senderId)) {
       log?.warn?.(`[DingTalk] DM 被拦截: senderId=${senderId} 不在 allowFrom 白名单中`);

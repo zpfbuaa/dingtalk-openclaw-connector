@@ -1,6 +1,5 @@
-import { DEFAULT_ACCOUNT_ID, normalizeAccountId } from "../sdk/helpers.ts";
+import { DEFAULT_ACCOUNT_ID, normalizeAccountId , normalizeResolvedSecretInputString, normalizeSecretInputString } from "../sdk/helpers.ts";
 import type { ClawdbotConfig } from "openclaw/plugin-sdk";
-import { normalizeResolvedSecretInputString, normalizeSecretInputString } from "../sdk/helpers.ts";
 import type {
   DingtalkConfig,
   DingtalkAccountConfig,
@@ -181,7 +180,7 @@ export function resolveDingtalkAccount(params: {
     ? null
     : resolveDefaultDingtalkAccountSelection(params.cfg);
   const accountId = hasExplicitAccountId
-    ? normalizeAccountId(params.accountId)
+    ? normalizeAccountId(params.accountId ?? "")
     : (defaultSelection?.accountId ?? DEFAULT_ACCOUNT_ID);
   const selectionSource = hasExplicitAccountId
     ? "explicit"
