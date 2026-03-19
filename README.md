@@ -1,294 +1,280 @@
 <div align="center">
   <img alt="DingTalk" src="docs/images/dingtalk.svg" width="72" height="72" />
-  <h1>Official DingTalk OpenClaw Connector</h1>
-  <p>Connect DingTalk bots to OpenClaw Gateway with AI Card streaming and session management</p>
+  <h1>钉钉 OpenClaw 官方连接器</h1>
+  <p>将钉钉机器人连接到 OpenClaw Gateway，支持 AI Card 流式响应和会话管理</p>
   
   <p>
-    <a href="README.zh-CN.md">简体中文</a> •
-    <a href="CHANGELOG.md">Changelog</a>
+    <a href="README.en.md">English</a> •
+    <a href="CHANGELOG.md">更新日志</a>
   </p>
 </div>
 
 ---
 
-## 📋 Table of Contents
+## 📋 目录
 
-- [Prerequisites](#prerequisites)
-- [Quick Start](#quick-start)
-- [Features](#features)
-- [Configuration](#configuration)
-- [Troubleshooting](#troubleshooting)
-- [Advanced Topics](#advanced-topics)
-- [License](#license)
+- [前置要求](#前置要求)
+- [快速开始](#快速开始)
+- [功能特性](#功能特性)
+- [配置说明](#配置说明)
+- [常见问题](#常见问题)
+- [进阶主题](#进阶主题)
+- [许可证](#许可证)
 
 ---
 
-## Prerequisites
+## 前置要求
 
-Before you begin, ensure you have:
+开始之前，请确保你已经：
 
-> This connector is used as an OpenClaw Gateway plugin, and you usually don't need to install or manage Node.js runtime by yourself.
+> 本插件作为 OpenClaw Gateway 插件使用，一般无需你单独安装或管理 Node.js 运行时。
 
 ### 1. OpenClaw Gateway
 
-- **Official Website**: https://openclaw.ai/
-- **Installation**: Follow the official guide to install OpenClaw
-- **Verify installation**:
+- **官方网站**：https://openclaw.ai/
+- **安装说明**：按照官方指南安装 OpenClaw
+- **验证安装**：
   ```bash
   openclaw gateway status
   ```
-  Expected output: `✓ Gateway is running on http://127.0.0.1:18789`
+  预期输出：`✓ Gateway is running on http://127.0.0.1:18789`
 
-### 2. DingTalk Enterprise Account
+### 2. 钉钉企业账号
 
-- You need a DingTalk enterprise account to create internal applications
-- Official Website: https://www.dingtalk.com/
+- 你需要一个钉钉企业账号来创建企业内部应用
+- 官方网站：https://www.dingtalk.com/
 
 ---
 
-## Quick Start
+## 快速开始
 
-> 💡 **Goal**: Get your DingTalk bot working in ~5 minutes
+> 💡 **目标**：5 分钟内让你的钉钉机器人运行起来
 
-### Operating System Support
+### 操作系统支持
 
-This plugin has been verified on:
+- macOS / Linux：使用默认的 Shell 终端（zsh、bash 等）。
+- Windows：
+  - 推荐使用 **PowerShell** 或 **Windows Terminal**。
+  - OpenClaw 配置文件路径默认为：`C:\Users\<你的用户名>\.openclaw\openclaw.json`。
 
-- macOS / Linux: Use the default shell (zsh, bash, etc.).
-- Windows:
-  - Recommended: **PowerShell** or **Windows Terminal**.
-  - OpenClaw config file path (default): `C:\Users\<YourUserName>\.openclaw\openclaw.json`.
+下文中出现的 `~/.openclaw/openclaw.json`，在 Windows 上等价于以上路径。
 
-Whenever you see `~/.openclaw/openclaw.json` below, it is equivalent to the above path on Windows.
-
-### Step 1: Install the Plugin
+### 步骤 1：安装插件
 
 ```bash
-# Recommended: Install from npm
+# 推荐：从 npm 安装
 openclaw plugins install @dingtalk-real-ai/dingtalk-connector
 
-# Alternative: Install from Git
+# 或者：从 Git 安装
 openclaw plugins install https://github.com/DingTalk-Real-AI/dingtalk-openclaw-connector.git
 ```
 
-**Verify installation**:
+**验证安装**：
 ```bash
 openclaw plugins list
 ```
-You should see `✓ DingTalk Channel (v0.8.0) - loaded`
+你应该看到 `✓ DingTalk Channel (v0.8.0) - loaded`
 
 ---
 
-### Step 2: Create a DingTalk Bot
+### 步骤 2：创建钉钉机器人
 
-#### 3.1 Create Application
+#### 3.1 创建应用
 
-1. Go to [DingTalk Open Platform](https://open-dev.dingtalk.com/)
-2. Click **"Application Development"** → **"Enterprise Internal Development"**
-3. Click **"Create Application"**
+1. 访问 [钉钉开放平台](https://open-dev.dingtalk.com/)
+2. 点击 **"应用开发"**
 
-![Create Application](docs/images/image-1.png)
+![创建应用](docs/images/image-1.png)
 
-#### 3.2 Add Bot Capability
+#### 3.2 添加机器人能力
 
-1. In the application details page, click **"Add Capability"**
-2. Select **"Bot"**
-3. Set message receiving mode to **"Stream Mode"** (NOT Webhook)
+1. 在应用详情页，点击 一键创建OpenClaw机器人应用
 
-![Add Bot Capability](docs/images/image-2.png)
+![创建OpenClaw机器人应用](docs/images/image-2.png)
 
-#### 3.3 Get Credentials
+#### 3.3 获取凭证
 
-1. Go to **"Credentials & Basic Info"**
-2. Copy your **AppKey** (Client ID)
-3. Copy your **AppSecret** (Client Secret)
+1. 完成创建并获取 **"凭证与基础信息"**
+2. 复制你的 **AppKey**（Client ID）
+3. 复制你的 **AppSecret**（Client Secret）
 
-![Get Credentials](docs/images/image-3.png)
+![完成创建](docs/images/image-3.png)
 
-#### 3.4 Publish Application
+![获取凭证](docs/images/image-4.png)
 
-1. Click **"Version Management"** → **"Publish"**
-2. Wait for approval (usually instant for internal apps)
-
-![Publish Application](docs/images/image-4.png)
-
-> ⚠️ **Important**: Unpublished apps will fail with Stream connection 400 errors.
+> ⚠️ **重要**：Client ID和 Client Secret是机器人的唯一凭证。请合理保存。
 
 ---
 
-### Step 3: Configure OpenClaw
+### 步骤 3：配置 OpenClaw
 
-You have three options to configure the connector:
+你有三种方式配置连接器：
 
-#### Option A: Configuration Wizard (Recommended for Beginners)
+#### 方式 A：配置向导（推荐新手使用）
 
-> You can directly copy and paste the following command into your terminal to run the configuration wizard.
+> 你可以直接复制粘贴下面的命令，在终端中运行配置向导。
 
 ```bash
 openclaw channels add
 ```
 
-Select **"DingTalk (钉钉)"** and follow the prompts to enter:
-- `clientId` (AppKey)
-- `clientSecret` (AppSecret)
+选择 **"DingTalk (钉钉)"**，然后按提示输入：
+- `clientId`（AppKey）
+- `clientSecret`（AppSecret）
 
-#### Option B: Edit Configuration File
+#### 方式 B：编辑配置文件
 
-Edit the configuration file:
+编辑配置文件：
 
-- macOS / Linux: `~/.openclaw/openclaw.json`
-- Windows: `C:\Users\<YourUserName>\.openclaw\openclaw.json`
+- macOS / Linux：`~/.openclaw/openclaw.json`
+- Windows：`C:\Users\<你的用户名>\.openclaw\openclaw.json`
 
 ```json5
 {
   "channels": {
     "dingtalk-connector": {
       "enabled": true,
-      "clientId": "dingxxxxxxxxx",        // Your AppKey
-      "clientSecret": "your_app_secret"   // Your AppSecret
+      "clientId": "dingxxxxxxxxx",        // 你的 AppKey
+      "clientSecret": "your_app_secret"   // 你的 AppSecret
     }
   }
 }
 ```
 
-> 💡 **Tip**: If the file already has content, add the `dingtalk-connector` section under the `channels` node.
+> 💡 **提示**：如果文件已有内容，在 `channels` 节点下添加 `dingtalk-connector` 部分即可。
 
 ---
 
-### Step 4: Restart and Test
+### 步骤 4：重启并测试
 
 ```bash
-# Restart OpenClaw Gateway
+# 重启 OpenClaw Gateway
 openclaw gateway restart
 
-# Watch logs in real-time
+# 实时查看日志
 openclaw logs --follow
 ```
 
-**Test your bot**:
-1. Open DingTalk app
-2. Find your bot in the contact list
-3. Send a message: `Hello`
-4. You should receive a response within 10 seconds
+**测试你的机器人**：
+1. 打开钉钉 App
+2. 在联系人列表中找到你的机器人
+3. 发送消息：`你好`
+4. 你应该在 10 秒内收到回复
 
 ---
 
-## Features
+## 功能特性
 
-### ✅ Core Features
+### ✅ 核心功能
 
-- **AI Card Streaming** - Typewriter-like replies with real-time streaming
-- **Session Management** - Multi-turn conversations with context preservation
-- **Session Isolation** - Separate sessions for DMs, groups, and different groups
-- **Auto Session Reset** - Automatic new session after 30 minutes of inactivity
-- **Manual Session Reset** - Send `/new` or `新会话` to clear conversation history
-- **Image Auto-Upload** - Local image paths automatically uploaded to DingTalk
-- **Proactive Messaging** - Send messages to users or groups programmatically
-- **Rich Media Reception** - Receive and process JPEG/PNG images, pass to vision models
-- **File Attachment Extraction** - Parse .docx, .pdf, text files, and binary files
-- **Audio Message Support** - Send audio messages in multiple formats (mp3, wav, amr, ogg)
-- **DingTalk Docs API** - Create, append, search, and list DingTalk documents
-- **Multi-Agent Routing** - Connect multiple bots to different agents for specialized services
-- **Markdown Table Conversion** - Auto-convert Markdown tables to DingTalk-compatible format
-- **Async Mode** - Immediate acknowledgment with background processing (optional)
-
----
-
-## Configuration
-
-### Basic Configuration
-
-| Option | Environment Variable | Description |
-|--------|---------------------|-------------|
-| `clientId` | — | DingTalk AppKey |
-| `clientSecret` | — | DingTalk AppSecret |
-| `gatewayToken` | `OPENCLAW_GATEWAY_TOKEN` | Gateway auth token (optional) |
-| `gatewayPassword` | — | Gateway auth password (optional, use token OR password) |
-
-### Session Management
-
-| Option | Default | Description |
-|--------|---------|-------------|
-| `separateSessionByConversation` | `true` | Separate sessions for DMs/groups |
-| `groupSessionScope` | `group` | Group session scope: `group` (shared) or `group_sender` (per-user) |
-| `sharedMemoryAcrossConversations` | `false` | Share memory across different conversations |
-
-### Async Mode
-
-| Option | Default | Description |
-|--------|---------|-------------|
-| `asyncMode` | `false` | Enable async mode for long-running tasks |
-| `ackText` | `🫡 任务已接收，处理中...` | Acknowledgment message text |
-
+- **AI Card 流式响应** - 打字机效果，实时流式显示回复
+- **会话管理** - 多轮对话，保持上下文
+- **会话隔离** - 私聊、群聊、不同群之间会话独立
+- **自动会话重置** - 30 分钟无活动后自动开启新会话
+- **手动会话重置** - 发送 `/new` 或 `新会话` 清空对话历史
+- **图片自动上传** - 本地图片路径自动上传到钉钉
+- **主动发送消息** - 程序化地向用户或群发送消息
+- **富媒体接收** - 接收并处理 JPEG/PNG 图片，传递给视觉模型
+- **文件附件提取** - 解析 .docx、.pdf、文本文件和二进制文件
+- **音频消息支持** - 发送多种格式的音频消息（mp3、wav、amr、ogg）
+- **钉钉文档 API** - 创建、追加、搜索和列举钉钉文档
+- **多 Agent 路由** - 将多个机器人连接到不同的 Agent，实现专业化服务
+- **Markdown 表格转换** - 自动将 Markdown 表格转换为钉钉兼容格式
+- **异步模式** - 立即确认消息，后台处理（可选）
 
 ---
 
-## Troubleshooting
+## 配置说明
 
-### Bot Not Responding
+### 基础配置
 
-**Symptoms**: Bot doesn't reply to messages
+| 选项 | 环境变量 | 说明 |
+|------|---------|------|
+| `clientId` | — | 钉钉 AppKey |
+| `clientSecret` | — | 钉钉 AppSecret |
+| `gatewayToken` | `OPENCLAW_GATEWAY_TOKEN` | Gateway 认证 token（可选） |
+| `gatewayPassword` | — | Gateway 认证密码（可选，token 和 password 二选一） |
 
-**Solutions**:
-1. Check plugin status: `openclaw plugins list`
-2. Check gateway status: `openclaw gateway status`
-3. Check logs: `openclaw logs --follow`
-4. Verify application is published in DingTalk Open Platform
+### 会话管理
 
----
+| 选项 | 默认值 | 说明 |
+|------|--------|------|
+| `separateSessionByConversation` | `true` | 私聊/群聊分别维护会话 |
+| `groupSessionScope` | `group` | 群聊会话范围：`group`（共享）或 `group_sender`（每人独立） |
+| `sharedMemoryAcrossConversations` | `false` | 是否在不同会话间共享记忆 |
 
-### HTTP 401 Error
+### 会话路由策略（`pmpolicy` / `groupPolicy`）
 
-**Symptoms**: Error message shows "401 Unauthorized"
+当前版本已支持会话路由/消息策略相关配置（包含 `pmpolicy`、`groupPolicy`），**无需删除**。如你在历史配置中已经设置了这些字段，可以继续保留并按需调整。
 
-**Cause**: Gateway authentication failed
+> 说明：不同版本/上游可能对字段命名有差异；本连接器侧同时支持并会按策略生效（如 `dmPolicy`/`groupPolicy` 的默认值为 `open`）。
 
-**Solution**:
-1. Check `gateway.auth.token` in `~/.openclaw/openclaw.json`
-2. Ensure `gatewayToken` in `channels.dingtalk-connector` matches the gateway token
-3. Restart gateway: `openclaw gateway restart`
+### 异步模式
 
----
+| 选项 | 默认值 | 说明 |
+|------|--------|------|
+| `asyncMode` | `false` | 启用异步模式处理长时间任务 |
+| `ackText` | `🫡 任务已接收，处理中...` | 确认消息文本 |
 
-### Stream Connection 400 Error
-
-**Symptoms**: Logs show "Request failed with status code 400"
-
-**Common Causes**:
-
-| Cause | Solution |
-|-------|----------|
-| Application not published | Go to DingTalk Open Platform → Version Management → Publish |
-| Invalid credentials | Check `clientId`/`clientSecret` for typos or extra spaces |
-| Not Stream mode | Verify bot is configured for Stream mode (not Webhook) |
-| IP whitelist | Check if application has IP whitelist restrictions |
-
-**Verification Steps**:
-
-1. **Test credentials**:
-   ```bash
-   curl -X POST "https://api.dingtalk.com/v1.0/oauth2/accessToken" \
-     -H "Content-Type: application/json" \
-     -d '{"appKey": "your_clientId", "appSecret": "your_clientSecret"}'
-   ```
-   - Success: Returns `accessToken`
-   - Failure: Returns `400` or `invalid`
-
-2. **Check application status**:
-   - Login to [DingTalk Open Platform](https://open-dev.dingtalk.com/)
-   - Verify application is published
-   - Verify bot is enabled and in Stream mode
-
-3. **Republish application**:
-   - After any configuration change, click **Save** → **Publish**
 
 ---
 
-## Advanced Topics
+## 常见问题
 
-### Multi-Agent Configuration
+### 机器人不回复
 
-Configure multiple bots connected to different agents:
+**症状**：机器人不回复消息
+
+**解决方案**：
+1. 检查插件状态：`openclaw plugins list`
+2. 检查网关状态：`openclaw gateway status`
+3. 查看日志：`openclaw logs --follow`
+4. 确认应用已在钉钉开放平台发布
+
+---
+
+### HTTP 401 错误
+
+**症状**：错误信息显示 "401 Unauthorized"
+
+**原因**：Gateway 认证失败
+
+**解决方案**：
+
+升级到最新版本
+
+---
+
+### Stream 连接 400 错误
+
+**症状**：日志显示 "Request failed with status code 400"
+
+**常见原因**：
+
+| 原因 | 解决方案 |
+|------|----------|
+| 应用未发布 | 前往钉钉开放平台 → 版本管理 → 发布 |
+| 凭证错误 | 检查 `clientId`/`clientSecret` 是否有拼写错误或多余空格 |
+| 非 Stream 模式 | 确认机器人配置为 Stream 模式（不是 Webhook） |
+| IP 白名单限制 | 检查应用是否设置了 IP 白名单 |
+
+**验证步骤**：
+
+1. **检查应用状态**：
+   - 登录 [钉钉开放平台](https://open-dev.dingtalk.com/)
+   - 确认应用已发布
+   - 确认机器人已启用且为 Stream 模式
+
+2. **重新发布应用**：
+   - 修改任何配置后，必须点击 **保存** → **发布**
+
+---
+
+## 进阶主题
+
+### 多 Agent 配置
+
+配置多个机器人连接到不同的 Agent：
 
 ```json5
 {
@@ -328,43 +314,53 @@ Configure multiple bots connected to different agents:
 }
 ```
 
-For more details, see [OpenClaw Multi-Agent Configuration Guide](https://gist.github.com/smallnest/c5c13482740fd179e40070e620f66a52).
+更多详情请参考 [OpenClaw 多 Agent 配置指南](https://gist.github.com/smallnest/c5c13482740fd179e40070e620f66a52)。
 
 ---
 
-### Session Commands
+### 会话命令
 
-Users can send the following commands to start a fresh session:
+用户可以发送以下命令清理对话历史，重新开始会话：
 
-- `/new`, `/reset`, `/clear`
-- `新会话`, `重新开始`, `清空对话`
+- `/new`、`/reset`、`/clear`
+- `新会话`、`重新开始`、`清空对话`
 
 ---
 
-### DingTalk Docs API
+### 钉钉文档（Docs）与 MCP（`docs.*`）
 
-Create and manage DingTalk documents from your agent:
+钉钉文档能力（`docs.*`，包含 `docs.create` / `docs.append` / `docs.search` / `docs.list` / `docs.read`）依赖 MCP（Model Context Protocol）提供底层 tool。你需要先在 OpenClaw 的 Gateway/Agent 侧启用对应的 MCP Server/Tool，然后上述 `docs.*` 才能正常工作。
+
+- **获取 MCP Server/Tool**：可通过 [钉钉 MCP 市场](https://mcp.dingtalk.com/) 安装启用（或你们团队维护的 MCP 市场）；也可以选择同类的“DingTalk Docs Read / DingTalk Docs Reader”能力并接入到 OpenClaw。
+- **配置位置**：通常在 **Gateway 或 Agent 的工具配置**中完成（而不是在连接器里）。
+- **生效方式**：配置完成后重启 Gateway，并确认该 tool 已对目标 Agent 暴露。
+
+参考（OpenClaw 官方配置文档）：
+- `https://docs.openclaw.ai/configuration`
+- `https://docs.openclaw.ai/gateway/configuration-reference`
+
+从你的 Agent 中创建和管理钉钉文档：
 
 ```javascript
-// Create document
+// 创建文档
 dingtalk-connector.docs.create({
   spaceId: "your-space-id",
-  title: "Test Document",
-  content: "# Test Content"
+  title: "测试文档",
+  content: "# 测试内容"
 })
 
-// Append content
+// 追加内容
 dingtalk-connector.docs.append({
   docId: "your-doc-id",
-  markdownContent: "\n## Appended Content"
+  markdownContent: "\n## 追加的内容"
 })
 
-// Search documents
+// 搜索文档
 dingtalk-connector.docs.search({
-  keyword: "search keyword"
+  keyword: "搜索关键词"
 })
 
-// List documents
+// 列举文档
 dingtalk-connector.docs.list({
   spaceId: "your-space-id"
 })
@@ -372,7 +368,7 @@ dingtalk-connector.docs.list({
 
 ---
 
-## Project Structure
+## 项目结构
 
 ```
 dingtalk-openclaw-connector/
@@ -390,24 +386,24 @@ dingtalk-openclaw-connector/
 
 ---
 
-## Dependencies
+## 依赖
 
-| Package | Purpose |
-|---------|---------|
-| `dingtalk-stream` | DingTalk Stream protocol client |
-| `axios` | HTTP client |
-| `mammoth` | Word document (.docx) parsing |
-| `pdf-parse` | PDF document parsing |
+| 包 | 用途 |
+|----|------|
+| `dingtalk-stream` | 钉钉 Stream 协议客户端 |
+| `axios` | HTTP 客户端 |
+| `mammoth` | Word 文档（.docx）解析 |
+| `pdf-parse` | PDF 文档解析 |
 
 ---
 
-## License
+## 许可证
 
 [MIT](LICENSE)
 
 ---
 
-## Support
+## 支持
 
-- **Issues**: [GitHub Issues](https://github.com/DingTalk-Real-AI/dingtalk-openclaw-connector/issues)
-- **Changelog**: [CHANGELOG.md](CHANGELOG.md)
+- **问题反馈**：[GitHub Issues](https://github.com/DingTalk-Real-AI/dingtalk-openclaw-connector/issues)
+- **更新日志**：[CHANGELOG.md](CHANGELOG.md)
