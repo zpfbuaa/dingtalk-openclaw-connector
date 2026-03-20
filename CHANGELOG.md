@@ -5,6 +5,12 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.1] - 2026-03-20
+
+### 修复 / Fixes
+- 🐛 **文件和图片下载 OSS 签名验证失败** - 修复默认 `Content-Type` 请求头导致 OSS 签名验证失败的问题，确保文件和图片能够正常下载  
+  **File and image download OSS signature verification failure** - Fixed OSS signature verification failure caused by default `Content-Type` header, ensuring files and images download correctly
+
 ## [0.8.0] - 2026-03-20
 
 ### 重构 / Refactoring
