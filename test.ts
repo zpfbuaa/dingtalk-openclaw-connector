@@ -11,6 +11,7 @@ import {
   isMessageProcessed,
   markMessageProcessed,
   cleanupProcessedMessages,
+  checkAndMarkDingtalkMessage,
   getDingtalkConfig,
   isDingtalkConfigured,
   getUnionId,
@@ -334,6 +335,7 @@ export const __testables = {
   isMessageProcessed,
   markMessageProcessed,
   cleanupProcessedMessages,
+  checkAndMarkDingtalkMessage,
 
   // config helpers (legacy test names)
   getConfig: getDingtalkConfig,

@@ -245,6 +245,41 @@ export function markMessageProcessed(messageId: string): void {
   }
 }
 
+/**
+ * 对钉钉 Stream 消息做双层去重检查，并在首次处理时标记。
+ *
+ * 背景：钉钉 Stream 模式存在两套消息 ID：
+ *   - headers.messageId：WebSocket 协议层的投递 ID，每次重发都会生成新值
+ *   - data.msgId：业务层的用户消息 ID，重发时保持不变
+ *
+ * 因此必须同时检查两个 ID，才能可靠地拦截钉钉服务端的重发消息：
+ *   1. 协议层去重（headers.messageId）：拦截同一次投递的重复回调
+ *   2. 业务层去重（data.msgId）：拦截 ~60 秒后服务端因未收到业务回复而触发的重发
+ *
+ * @param protocolMessageId - res.headers.messageId（WebSocket 协议层投递 ID）
+ * @param businessMsgId     - data.msgId（钉钉业务层消息 ID，来自 JSON.parse(res.data).msgId）
+ * @returns true 表示消息已处理过（应跳过），false 表示首次处理（已标记为已处理）
+ */
+export function checkAndMarkDingtalkMessage(
+  protocolMessageId: string | undefined,
+  businessMsgId: string | undefined,
+): boolean {
+  // 协议层去重：同一次投递的重复回调
+  if (protocolMessageId && isMessageProcessed(protocolMessageId)) {
+    return true;
+  }
+  // 业务层去重：钉钉服务端重发（headers.messageId 变了，但 data.msgId 不变）
+  if (businessMsgId && isMessageProcessed(businessMsgId)) {
+    return true;
+  }
+
+  // 首次处理：同时标记两个 ID，确保后续任意一个 ID 都能命中去重
+  if (protocolMessageId) markMessageProcessed(protocolMessageId);
+  if (businessMsgId) markMessageProcessed(businessMsgId);
+
+  return false;
+}
+
 // ============ 配置工具 ============
 
 /**

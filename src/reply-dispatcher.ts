@@ -667,7 +667,7 @@ export function createDingtalkReplyDispatcher(params: CreateDingtalkReplyDispatc
         }
       },
       }),
-      disableBlockStreaming: true,  // ✅ 强制使用 onPartialReply 而不是 block
+      disableBlockStreaming: true,  // block 内容合并到 final，流式更新通过 onPartialReply 实现
     },
     markDispatchIdle,
     getAsyncModeResponse: () => asyncModeFullResponse,

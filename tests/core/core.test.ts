@@ -90,6 +90,85 @@ describe('core functionality', () => {
     });
   });
 
+  describe('checkAndMarkDingtalkMessage', () => {
+    it('should return false and mark both IDs on first call', async () => {
+      const { __testables } = await import('../../test');
+      const { checkAndMarkDingtalkMessage, isMessageProcessed, cleanupProcessedMessages } = __testables as any;
+
+      cleanupProcessedMessages();
+
+      const isDuplicate = checkAndMarkDingtalkMessage('proto-id-1', 'biz-id-1');
+      expect(isDuplicate).toBe(false);
+
+      // 两个 ID 都应被标记为已处理
+      expect(isMessageProcessed('proto-id-1')).toBe(true);
+      expect(isMessageProcessed('biz-id-1')).toBe(true);
+    });
+
+    it('should return true when protocol messageId is already processed (协议层重复)', async () => {
+      const { __testables } = await import('../../test');
+      const { checkAndMarkDingtalkMessage, markMessageProcessed, cleanupProcessedMessages } = __testables as any;
+
+      cleanupProcessedMessages();
+
+      // 预先标记协议层 ID
+      markMessageProcessed('proto-id-2');
+
+      const isDuplicate = checkAndMarkDingtalkMessage('proto-id-2', 'biz-id-2');
+      expect(isDuplicate).toBe(true);
+    });
+
+    it('should return true when business msgId is already processed (钉钉服务端重发)', async () => {
+      const { __testables } = await import('../../test');
+      const { checkAndMarkDingtalkMessage, markMessageProcessed, cleanupProcessedMessages } = __testables as any;
+
+      cleanupProcessedMessages();
+
+      // 首次处理：标记业务层 ID
+      markMessageProcessed('biz-id-3');
+
+      // 重发时：协议层 ID 是新值，但业务层 ID 不变 → 应被拦截
+      const isDuplicate = checkAndMarkDingtalkMessage('proto-id-3-new', 'biz-id-3');
+      expect(isDuplicate).toBe(true);
+    });
+
+    it('should work with only protocolMessageId provided', async () => {
+      const { __testables } = await import('../../test');
+      const { checkAndMarkDingtalkMessage, isMessageProcessed, cleanupProcessedMessages } = __testables as any;
+
+      cleanupProcessedMessages();
+
+      expect(checkAndMarkDingtalkMessage('proto-only', undefined)).toBe(false);
+      expect(isMessageProcessed('proto-only')).toBe(true);
+
+      // 再次调用应返回 true
+      expect(checkAndMarkDingtalkMessage('proto-only', undefined)).toBe(true);
+    });
+
+    it('should work with only businessMsgId provided', async () => {
+      const { __testables } = await import('../../test');
+      const { checkAndMarkDingtalkMessage, isMessageProcessed, cleanupProcessedMessages } = __testables as any;
+
+      cleanupProcessedMessages();
+
+      expect(checkAndMarkDingtalkMessage(undefined, 'biz-only')).toBe(false);
+      expect(isMessageProcessed('biz-only')).toBe(true);
+
+      // 再次调用应返回 true
+      expect(checkAndMarkDingtalkMessage(undefined, 'biz-only')).toBe(true);
+    });
+
+    it('should return false when both IDs are undefined', async () => {
+      const { __testables } = await import('../../test');
+      const { checkAndMarkDingtalkMessage, cleanupProcessedMessages } = __testables as any;
+
+      cleanupProcessedMessages();
+
+      // 两个 ID 都是 undefined，不应标记任何内容，也不应误判为重复
+      expect(checkAndMarkDingtalkMessage(undefined, undefined)).toBe(false);
+    });
+  });
+
   describe('getConfig', () => {
     it('should extract config from ClawdbotConfig', async () => {
       const { __testables } = await import('../../test');

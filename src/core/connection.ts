@@ -15,8 +15,7 @@
 import type { ClawdbotConfig, RuntimeEnv } from "openclaw/plugin-sdk";
 import type { ResolvedDingtalkAccount } from "../types/index.ts";
 import {
-  isMessageProcessed,
-  markMessageProcessed,
+  checkAndMarkDingtalkMessage,
 } from "../utils/utils-legacy.ts";
 import { createLoggerFromConfig } from "../utils/logger.ts";
 
@@ -489,17 +488,14 @@ export async function monitorSingleAccount(
         logger.warn(`⚠️ 警告：消息没有 messageId`);
       }
 
-      // 消息去重
-      if (messageId && isMessageProcessed(messageId)) {
-        processedCount++;  // ✅ 修复：重复消息也要计入 processedCount
-        logger.warn(`⚠️ 检测到重复消息，跳过处理：messageId=${messageId} (${processedCount}/${receivedCount})`);
+      // 协议层去重（headers.messageId）：拦截同一次投递的重复回调
+      // 注意：业务层去重（data.msgId）在 JSON 解析后执行，两层合并在 checkAndMarkDingtalkMessage 中
+      // 此处仅做协议层的快速预检，避免不必要的 JSON 解析
+      if (messageId && checkAndMarkDingtalkMessage(messageId, undefined)) {
+        processedCount++;
+        logger.warn(`⚠️ 检测到重复消息（协议层），跳过处理：messageId=${messageId} (${processedCount}/${receivedCount})`);
         logger.info(`========== 消息处理结束（重复） ==========\n`);
         return;
-      }
-
-      if (messageId) {
-        markMessageProcessed(messageId);
-        logger.info(`标记消息为已处理：messageId=${messageId}`);
       }
 
       // 异步处理消息
@@ -543,6 +539,18 @@ export async function monitorSingleAccount(
         logger.info(
           `RobotCode: ${data.robotCode || account.config?.clientId || "N/A"}`,
         );
+
+        // ===== 业务层去重：补充 data.msgId，防止钉钉服务端重发穿透 =====
+        // 协议层已标记了 headers.messageId，此处再补充标记 data.msgId。
+        // 钉钉重发时 headers.messageId 是新值，但 data.msgId 不变，
+        // checkAndMarkDingtalkMessage 会命中 data.msgId 并返回 true 拦截重发。
+        const businessMsgId = data.msgId;
+        if (checkAndMarkDingtalkMessage(undefined, businessMsgId)) {
+          processedCount++;
+          logger.warn(`⚠️ 检测到钉钉服务端重发消息，跳过处理：msgId=${businessMsgId} (${processedCount}/${receivedCount})`);
+          logger.info(`========== 消息处理结束（业务层去重） ==========\n`);
+          return;
+        }
 
         // 记录消息内容（简化版，避免过长）
         let contentPreview = "N/A";

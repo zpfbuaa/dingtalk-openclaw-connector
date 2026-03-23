@@ -1,8 +1,7 @@
 import { EventEmitter } from "events";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const mockIsMessageProcessed = vi.hoisted(() => vi.fn());
-const mockMarkMessageProcessed = vi.hoisted(() => vi.fn());
+const mockCheckAndMarkDingtalkMessage = vi.hoisted(() => vi.fn());
 const mockLoggerInfo = vi.hoisted(() => vi.fn());
 const mockLoggerDebug = vi.hoisted(() => vi.fn());
 const mockLoggerWarn = vi.hoisted(() => vi.fn());
@@ -43,8 +42,7 @@ vi.mock("dingtalk-stream", () => ({
 }));
 
 vi.mock("../../src/utils/utils-legacy.ts", () => ({
-  isMessageProcessed: mockIsMessageProcessed,
-  markMessageProcessed: mockMarkMessageProcessed,
+  checkAndMarkDingtalkMessage: mockCheckAndMarkDingtalkMessage,
 }));
 
 vi.mock("../../src/utils/logger.ts", () => ({
@@ -61,7 +59,8 @@ describe("core/connection", () => {
     vi.clearAllMocks();
     FakeDWClient.nextConnectError = null;
     FakeDWClient.latestInstance = null;
-    mockIsMessageProcessed.mockReturnValue(false);
+    // 默认首次处理：返回 false（未重复）
+    mockCheckAndMarkDingtalkMessage.mockReturnValue(false);
   });
 
   function createOpts(overrides?: Partial<any>) {
@@ -143,10 +142,12 @@ describe("core/connection", () => {
     });
 
     expect(client!.socketCallBackResponse).toHaveBeenCalledWith("m1", { success: true });
-    expect(mockMarkMessageProcessed).toHaveBeenCalledWith("m1");
+    // 协议层去重：首次消息时 checkAndMarkDingtalkMessage 应被调用（传入 messageId，返回 false）
+    expect(mockCheckAndMarkDingtalkMessage).toHaveBeenCalledWith("m1", undefined);
     expect(messageHandler).toHaveBeenCalledTimes(1);
 
-    mockIsMessageProcessed.mockReturnValue(true);
+    // 模拟重复消息：checkAndMarkDingtalkMessage 返回 true，应跳过处理
+    mockCheckAndMarkDingtalkMessage.mockReturnValue(true);
     await client!.callback?.({
       headers: { messageId: "m1" },
       data: JSON.stringify({ sessionWebhook: "http://webhook" }),
