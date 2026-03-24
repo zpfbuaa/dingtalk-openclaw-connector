@@ -11,15 +11,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - ✅ **移除版本校验逻辑** - 删除插件入口 `index.ts` 中的 OpenClaw SDK 版本兼容性检查代码，简化插件启动流程，提升加载性能  
   **Removed version check logic** - Removed OpenClaw SDK version compatibility check code from plugin entry `index.ts`, simplifying plugin startup process and improving load performance
 
-- ✅ **版本号规范化** - 将版本号从 `0.8.3-beta` 升级到 `0.8.6`，移除 beta 标识，标志着插件进入稳定版本阶段  
-  **Version normalization** - Upgraded version from `0.8.3-beta` to `0.8.6`, removing beta tag to mark the plugin entering stable release stage
-
-### 配置 / Configuration
-- 更新 `package.json` 版本号：`0.8.3-beta` → `0.8.6`  
-  Updated `package.json` version: `0.8.3-beta` → `0.8.6`
-- 更新 `openclaw.plugin.json` 版本号：`0.8.3-beta` → `0.8.6`  
-  Updated `openclaw.plugin.json` version: `0.8.3-beta` → `0.8.6`
-
 ## [0.8.5] - 2026-03-24
 
 ### 改进 / Improvements
