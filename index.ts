@@ -35,7 +35,7 @@ function checkSdkVersion(api: OpenClawPluginApi): boolean {
       console.error('❌ OpenClaw SDK 版本过低');
       console.error('='.repeat(80));
       console.error('');
-      console.error('dingtalk-connector v0.8.4+ 需要 OpenClaw SDK v2026.3.23-2 或更高版本。');
+      console.error('dingtalk-connector v0.8.4+ 需要 OpenClaw SDK v2026.3.22 或更高版本。');
       console.error('');
       console.error('当前 OpenClaw SDK 版本过低，缺少必要的 API：');
       console.error('  - core.channel.routing.buildAgentSessionKey');
@@ -79,5 +79,5 @@ export default function register(api: OpenClawPluginApi) {
   // 注册 Gateway Methods
   registerGatewayMethods(api);
   
-  console.log('[dingtalk-connector] v0.8.4 已成功加载（需要 OpenClaw SDK v2026.3.23-2+）');
+  console.log('[dingtalk-connector] v0.8.4 已成功加载（需要 OpenClaw SDK v2026.3.22+）');
 }
